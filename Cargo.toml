@@ -1,0 +1,35 @@
+[package]
+name = "hekate-groestl"
+version = "0.2.0"
+edition = "2024"
+authors = ["Oumuamua Corp", "Andrei Kochergin <zeek@tuta.com>"]
+repository = "https://github.com/oumuamua-corp/hekate-groestl"
+description = "Hardware-accelerated, algebra-native hash function optimized for GKR recursion over Binary Tower Fields GF(2^128)."
+keywords = ["cryptography", "zk", "hash", "groestl", "binary-fields"]
+categories = ["cryptography", "no-std"]
+license = "Apache-2.0"
+
+[lib]
+crate-type = ["rlib"]
+
+[features]
+default = []
+std = ["digest/std"]
+test-utils = []
+
+[dependencies]
+digest = { version = "0.10", default-features = false }
+
+[dev-dependencies]
+hekate-groestl = { path = ".", features = ["test-utils"] }
+criterion = "0.8"
+rand = "0.9"
+dhat = "0.3"
+
+[[bench]]
+name = "throughput"
+harness = false
+
+[[bench]]
+name = "latency"
+harness = false
