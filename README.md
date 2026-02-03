@@ -8,11 +8,11 @@ of binary fields to minimize prover overhead while maximizing native CPU executi
 
 ---
 
-> **⚠️ SECURITY NOTICE**
+> ⚠️ SECURITY NOTICE
 >
-> * **Non-Standard:** Not NIST-compliant. Do not use for general-purpose hashing (passwords, signatures).
-> * **Domain:** Operates strictly over $GF(2^{128})$. Incompatible with standard Groestl-256.
-> * **Status:** Research-grade software. Unaudited.
+> * Non-Standard: Not NIST-compliant. Do not use for general-purpose hashing.
+> * Domain: Operates strictly over $GF(2^{128})$. Incompatible with standard Groestl-256.
+> * Status: Research-grade software. Unaudited.
 
 ---
 
@@ -38,24 +38,24 @@ Designed to align cryptographic state with the native word size of extension fie
 
 ### Key Features
 
-* **Compact State:** Uses a $4 \times 4$ matrix of $GF(2^{128})$ elements. Total state size is **256 bytes** (2048
+* Compact State: Uses a $4 \times 4$ matrix of $GF(2^{128})$ elements. Total state size is **256 bytes** (2048
   bits), fitting entirely within CPU registers for maximum register renaming efficiency.
-* **Algebraic S-Box:** Replaces the AES S-Box with the power map $S(x) = x^{254} + 0x63$. In characteristic-2 fields,
+* Algebraic S-Box: Replaces the AES S-Box with the power map $S(x) = x^{254} + 0x63$. In characteristic-2 fields,
   this decomposes into cheap linear squaring operations in GKR circuits.
-* **Hardware Acceleration:** Generic over `TowerFieldElement`. When used with `Block128`, it leverages `PMULL` (ARM) and
+* Hardware Acceleration: Generic over `TowerFieldElement`. When used with `Block128`, it leverages `PMULL` (ARM) and
   `PCLMULQDQ` (x86) instructions for single-cycle field multiplication.
-* **ZK-Friendly MDS:** Utilizes a custom MDS matrix `circ(1, 1, 2, 3)` with small coefficients to minimize linear
+* ZK-Friendly MDS: Utilizes a custom MDS matrix `[1, 1, 2, 3]` with small coefficients to minimize linear
   constraint depth.
 
 ### Specification vs NIST Groestl
 
-| Feature        | Standard Groestl-256    | Hekate-Groestl V2                   | Rationale                    |
-|:---------------|:------------------------|:------------------------------------|:-----------------------------|
-| **Domain**     | $GF(2^8)$ (Bytes)       | $GF(2^{128})$                       | Circuit Efficiency           |
-| **State Size** | 64 bytes (512 bits)     | 256 bytes (2048 bits)               | Capacity / Security          |
-| **S-Box**      | $x^{-1}$ in $GF(2^8)$   | $x^{254} + c$ in $GF(2^{128})$      | GKR Arithmetization          |
-| **MDS Matrix** | $8 \times 8$ (Branch 9) | $4 \times 4$ (Branch 5)             | L1 Cache / Register Pressure |
-| **Padding**    | Bit-padding             | Field Padding (`0x80` Tag + Length) | Length Extension Defense     |
+| Feature    | Standard Groestl-256    | Hekate-Groestl V2                   | Rationale                    |
+|:-----------|:------------------------|:------------------------------------|:-----------------------------|
+| Domain     | $GF(2^8)$ (Bytes)       | $GF(2^{128})$                       | Circuit Efficiency           |
+| State Size | 64 bytes (512 bits)     | 256 bytes (2048 bits)               | Capacity / Security          |
+| S-Box      | $x^{-1}$ in $GF(2^8)$   | $x^{254} + c$ in $GF(2^{128})$      | GKR Arithmetization          |
+| MDS Matrix | $8 \times 8$ (Branch 9) | $4 \times 4$ (Branch 5)             | L1 Cache / Register Pressure |
+| Padding    | Bit-padding             | Field Padding (`0x80` Tag + Length) | Length Extension Defense     |
 
 ## Installation
 
@@ -97,7 +97,7 @@ The core permutation follows the SP-Network design:
 1. AddRoundConstant: XOR round constants.
 2. SubBytes: Applies $x \mapsto x^{254} + 0x63$ (Native Field S-Box).
 3. ShiftBytes: Column rotation for diffusion.
-4. MixBytes: Column-wise multiplication by MDS matrix `circ(1, 1, 2, 3)`.
+4. MixBytes: Column-wise multiplication by MDS matrix `[1, 1, 2, 3]`.
 
 Security Note: To prevent length extension attacks, a strict padding scheme
 (Tag `0x80` + Zero Fill + `u64` Length) is enforced before the final permutation.
