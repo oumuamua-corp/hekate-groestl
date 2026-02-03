@@ -21,12 +21,12 @@ of binary fields to minimize prover overhead while maximizing native CPU executi
 Performance comparison against standard cryptographic primitives.
 Hekate Groestl runs on the `Block128` hardware backend (NEON/PMULL).
 
-| Primitive             | Field           | Latency (Permutation) | Throughput (Merkle) | Speedup Factor      |
-|:----------------------|:----------------|:----------------------|:--------------------|:--------------------|
-| **Hekate-Groestl V2** | $GF(2^{128})$   | **3.8 µs**            | **~187 K/s**        | **1.0x (Baseline)** |
-| Miden RPO             | $F_p$ (64-bit)  | 3.00 µs               | ~337 K/s            | 20.5 MiB/s          | 
-| Poseidon (BN254)      | $F_p$ (254-bit) | 18.74 µs              | ~52 K/s             | 3.2 MiB/s           | 
-| MockBlock128 (Scalar) | $GF(2^{128})$   | 309.0 µs              | 2.1 K/s             | *(Slow Fallback)*   |
+| Primitive             | Field           | Latency (Permutation) | Throughput (Merkle) | Speedup Factor  |
+|:----------------------|:----------------|:----------------------|:--------------------|:----------------|
+| Hekate-Groestl        | $GF(2^{128})$   | 3.8 µs                | ~187 K/s            | 1.0x (Baseline) |
+| Miden RPO             | $F_p$ (64-bit)  | 3.00 µs               | ~337 K/s            | ~1.8x Faster    | 
+| Poseidon (BN254)      | $F_p$ (254-bit) | 18.74 µs              | ~52 K/s             | ~3.6x Slower    | 
+| MockBlock128 (Scalar) | $GF(2^{128})$   | 309.0 µs              | 2.1 K/s             | Slow Fallback   |
 
 > Optimization Note: The Merkle throughput for Hekate uses the standard padded sponge API.
 > Using a dedicated 2-to-1 compression function (without padding) is expected to double this rate,
@@ -84,7 +84,7 @@ fn main() {
 
     // Finalize to 256-bit Digest (2 x Block128)
     // Returns [Low, High] parts for 128-bit collision resistance.
-    let [digest_lo, digest_hi] = hasher.finalize_expanded();
+    let [digest_lo, digest_hi] = hasher.finalize_raw();
 
     println!("Hash: {:?} {:?}", digest_lo, digest_hi);
 }
