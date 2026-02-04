@@ -17,10 +17,6 @@ overhead while maximizing native CPU execution via SIMD intrinsics.
 
 ## Architecture
 
-Designed to align cryptographic state with the native word size of extension fields.
-
-### Key Features
-
 * **Compact State:** Uses a $4 \times 4$ matrix of $GF(2^{128})$ elements. Total state size is 256 bytes (2048
   bits), fitting entirely within CPU registers for maximum register renaming efficiency.
 * **Algebraic S-Box:** Replaces the AES S-Box with the power map $S(x) = x^{254} + 0x63$. In characteristic-2 fields,
@@ -30,7 +26,7 @@ Designed to align cryptographic state with the native word size of extension fie
 * **ZK-Friendly MDS:** Utilizes a custom MDS matrix `[1, 1, 2, 3]` with small coefficients to minimize linear
   constraint depth.
 
-### Specification vs NIST Groestl
+### Hakete Groestl != NIST Groestl
 
 | Feature    | Standard Groestl-256    | Hekate-Groestl V2                   | Rationale                    |
 |:-----------|:------------------------|:------------------------------------|:-----------------------------|
