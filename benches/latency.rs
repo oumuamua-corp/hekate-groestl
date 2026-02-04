@@ -1,7 +1,6 @@
 use core::hint::black_box;
 use criterion::{Criterion, criterion_group, criterion_main};
-use hekate_groestl::mock::MockBlock128;
-use hekate_groestl::{STATE_SIZE, permutation};
+use hekate_groestl::{MockBlock128, STATE_SIZE, permutation};
 // use hekate_math::Block128;
 
 type F = MockBlock128;

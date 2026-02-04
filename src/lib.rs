@@ -1,13 +1,14 @@
 #![no_std]
 
-#[cfg(any(test, feature = "test-utils"))]
-pub mod mock;
-mod tower;
+mod field;
 
 use digest::{FixedOutput, HashMarker, Output, OutputSizeUser, typenum::U32};
 
 pub use digest::{Reset, Update};
-pub use tower::TowerFieldElement;
+pub use field::TowerFieldElement;
+
+#[cfg(any(test, feature = "test-utils"))]
+pub use field::mock::MockBlock128;
 
 pub const STATE_SIZE: usize = 16;
 
@@ -63,7 +64,7 @@ impl<F: TowerFieldElement> HekateGroestl<F> {
     /// Direct field element update (bypassing byte conversion).
     pub fn update_elements(&mut self, input: &[F]) {
         for &elem in input {
-            // Convert Input (Tower) -> State (Flat).
+            // Convert Input (Tower) -> State (Flat)
             self.buffer[self.buf_len] = elem.to_flat();
             self.buf_len += 1;
             self.total_len += 1;
@@ -84,8 +85,7 @@ impl<F: TowerFieldElement> HekateGroestl<F> {
         self.buf_len += 1;
 
         if self.buf_len > STATE_SIZE - 1 {
-            // Fill rest with zeros,
-            // compress, then start fresh.
+            // Fill rest with zeros, compress, then start fresh
             for i in self.buf_len..STATE_SIZE {
                 self.buffer[i] = F::default();
             }
@@ -115,7 +115,7 @@ impl<F: TowerFieldElement> HekateGroestl<F> {
         // A. Run P-Permutation on current state
         // S_next = P(S_curr)
         let mut s_next = self.state;
-        permutation(&mut s_next, false, self.rounds); // is_q = false
+        permutation(&mut s_next, false, self.rounds);
 
         // B. Output Transform: T = S_next ^ S_curr
         let mut transformed = [F::default(); STATE_SIZE];
@@ -256,16 +256,12 @@ impl<F: TowerFieldElement> Reset for HekateGroestl<F> {
 /// f(h, m) = P(h^m) ^ Q(m) ^ h
 #[inline(always)]
 pub fn compress<F: TowerFieldElement>(h: &mut [F; STATE_SIZE], m: &[F; STATE_SIZE], rounds: usize) {
-    // Prepare P input:
-    // p_in = h + m (XOR in binary fields)
     let mut p_in = [F::default(); STATE_SIZE];
     for i in 0..STATE_SIZE {
         p_in[i] = h[i] + m[i];
     }
 
-    // Prepare Q input: q_in = m
     let mut q_in = *m;
-
     permutation(&mut p_in, false, rounds);
     permutation(&mut q_in, true, rounds);
 

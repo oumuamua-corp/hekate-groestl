@@ -1,6 +1,7 @@
 use digest::Reset;
-use hekate_groestl::mock::MockBlock128;
-use hekate_groestl::{HekateGroestl, PADDING_TAG, SBOX_C, STATE_SIZE, TowerFieldElement};
+use hekate_groestl::{
+    HekateGroestl, MockBlock128, PADDING_TAG, SBOX_C, STATE_SIZE, TowerFieldElement,
+};
 // use hekate_math::{Block128, TowerField};
 
 type F = MockBlock128;

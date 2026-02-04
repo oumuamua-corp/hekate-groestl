@@ -1,5 +1,4 @@
-use hekate_groestl::mock::MockBlock128;
-use hekate_groestl::{HekateGroestl, STATE_SIZE, compress};
+use hekate_groestl::{HekateGroestl, MockBlock128, STATE_SIZE, compress};
 
 #[global_allocator]
 static ALLOC: dhat::Alloc = dhat::Alloc;

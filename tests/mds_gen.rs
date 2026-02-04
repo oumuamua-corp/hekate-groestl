@@ -1,4 +1,4 @@
-use hekate_groestl::mock::MockBlock128;
+use hekate_groestl::MockBlock128;
 // use hekate_math::{Block128, TowerField};
 
 // type F = Block128;

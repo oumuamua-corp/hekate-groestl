@@ -1,8 +1,7 @@
 use core::hint::black_box;
 use core::time::Duration;
 use criterion::{Criterion, Throughput, criterion_group, criterion_main};
-use hekate_groestl::HekateGroestl;
-use hekate_groestl::mock::MockBlock128;
+use hekate_groestl::{HekateGroestl, MockBlock128};
 // use hekate_math::Block128;
 
 type F = MockBlock128;
