@@ -47,25 +47,48 @@ hekate-groestl = { git = "https://github.com/oumuamua-corp/hekate-groestl" }
 
 Ensure your field implementation supports hardware intrinsics for performance.
 
+**CRITICAL NOTE:** Hekate Groestl arithmetic (S-Box, MDS) is optimized for the Hardware (Flat) Basis
+using `PMULL`/`PCLMULQDQ`. You **MUST** convert your standard Tower Field elements to Hardware Basis
+before hashing and convert the result back. If you skip this, the hardware instructions will interpret
+the bits of your Tower element as a polynomial in the Flat basis, producing mathematically meaningless
+results (garbage) without raising any runtime errors.
+
 ```rust
-use hekate_groestl::{HekateGroestl, TowerFieldElement};
+use hekate_groestl::Hasher;
+use hekate_math::{Block128, HardwareField};
 
-// Assuming Block128 implements TowerFieldElement
-type F = Block128;
-
+#[test]
 fn main() {
-    // Initialize (12 rounds recommended for 4x4 matrix)
-    let mut hasher = HekateGroestl::<F>::new(12);
+    let mut hasher = Hasher::new();
 
-    // Update with Native Field Elements
-    let input = [F::from(0xDEAD_BEEF_u64), F::from(0xCAFE_BABE_u64)];
-    hasher.update_elements(&input);
+    // 1. PREPARE INPUT
+    // You must project our "human-readable" Tower elements into
+    // the Hardware (Flat) basis where the S-Box math lives.
+    //
+    // WARNING: If you omit .to_hardware(), the hasher will
+    // silently compute incorrect algebraic results!
+    let input_tower = [
+        Block128::from(0xDEAD_BEEF_u64),
+        Block128::from(0xCAFE_BABE_u64),
+    ];
+    let input_flat = input_tower.map(|x| x.to_hardware());
 
-    // Finalize to 256-bit Digest (2 x Block128)
-    // Returns [Low, High] parts for 128-bit collision resistance.
-    let [digest_lo, digest_hi] = hasher.finalize_raw();
+    // 2. UPDATE
+    hasher.update_elements(&input_flat);
 
-    println!("Hash: {:?} {:?}", digest_lo, digest_hi);
+    // 3. FINALIZE
+    // Returns [Low, High] parts in Hardware Basis.
+    let [raw_lo, raw_hi] = hasher.finalize_raw();
+
+    println!("Hash (Flat Basis): {:?} {:?}", raw_lo, raw_hi);
+
+    // 4. CONVERT BACK
+    // Project the result back to the canonical Tower basis to use
+    // in the rest of your application or for verification.
+    let digest_lo = raw_lo.convert_hardware();
+    let digest_hi = raw_hi.convert_hardware();
+
+    println!("Hash (Tower Basis): {:?} {:?}", digest_lo, digest_hi);
 }
 ```
 
@@ -86,12 +109,11 @@ Security Note: To prevent length extension attacks, a strict padding scheme
 Performance comparison against standard cryptographic primitives.
 Hekate Groestl runs on the `Block128` hardware backend (NEON/PMULL).
 
-| Primitive             | Field           | Latency (Permutation) | Throughput (Merkle) | Speedup Factor  |
-|:----------------------|:----------------|:----------------------|:--------------------|:----------------|
-| Hekate-Groestl        | $GF(2^{128})$   | 3.8 µs                | ~187 K/s            | 1.0x (Baseline) |
-| Miden RPO             | $F_p$ (64-bit)  | 3.00 µs               | ~337 K/s            | ~1.8x Faster    | 
-| Poseidon (BN254)      | $F_p$ (254-bit) | 18.74 µs              | ~52 K/s             | ~3.6x Slower    | 
-| MockBlock128 (Scalar) | $GF(2^{128})$   | 309.0 µs              | 2.1 K/s             | Slow Fallback   |
+| Primitive        | Field           | Latency (Permutation) | Throughput (Merkle) | Throughput (Bulk) |
+|:-----------------|:----------------|:----------------------|:--------------------|:------------------|
+| Hekate-Groestl   | $GF(2^{128})$   | 3.6 µs                | ~172 K/s            | ~32.1 MiB/s       |
+| Miden RPO        | $F_p$ (64-bit)  | 3.00 µs               | ~337 K/s            | ~20.5 MiB/s       | 
+| Poseidon (BN254) | $F_p$ (254-bit) | 18.74 µs              | ~52 K/s             | ~3.2 MiB/s        | 
 
 > Optimization Note: The Merkle throughput for Hekate uses the standard padded sponge API.
 > Using a dedicated 2-to-1 compression function (without padding) is expected to double this rate,
