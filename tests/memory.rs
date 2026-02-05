@@ -1,9 +1,8 @@
-use hekate_groestl::{HekateGroestl, MockBlock128, STATE_SIZE, compress};
+use hekate_groestl::{Hasher, STATE_SIZE, compress};
+use hekate_math::{Block128, HardwareField};
 
 #[global_allocator]
 static ALLOC: dhat::Alloc = dhat::Alloc;
-
-type F = MockBlock128;
 
 #[test]
 fn profile_memory_usage() {
@@ -12,24 +11,25 @@ fn profile_memory_usage() {
     println!(">>> Starting Memory Audit...");
 
     // Pre-allocate data on stack
-    let input = [F::from(0xDEADBEEFu128); STATE_SIZE];
-    let mut state = [F::default(); STATE_SIZE];
-    let msg = [F::default(); STATE_SIZE];
-    let rounds = 10;
+    let input = [Block128::from(0xDEADBEEFu128).to_hardware(); STATE_SIZE];
+    let mut state = [Block128::default(); STATE_SIZE];
+    let msg = [Block128::default(); STATE_SIZE];
 
     let stats_before = dhat::HeapStats::get();
 
     // 1: Full Hash Cycle
     {
-        let mut hasher = HekateGroestl::<F>::new(rounds);
+        let mut hasher = Hasher::new();
         hasher.update_elements(&input);
+
         let _res = hasher.finalize_raw();
+
         std::hint::black_box(_res);
     }
 
     // 2: Low-level Compress
     {
-        compress(&mut state, &msg, rounds);
+        compress(&mut state, &msg);
     }
 
     let stats_after = dhat::HeapStats::get();

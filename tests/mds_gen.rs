@@ -1,8 +1,6 @@
-use hekate_groestl::MockBlock128;
-// use hekate_math::{Block128, TowerField};
+use hekate_math::{Block128, HardwareField, TowerField};
 
-// type F = Block128;
-type F = MockBlock128;
+type F = Block128;
 
 /// Cost function for ZK/Circuit efficiency.
 /// Lower is better.
@@ -20,6 +18,16 @@ fn get_zk_cost(val: u8) -> u32 {
     }
 }
 
+/// Helper to invert in Flat Basis. Native inversion
+/// is only implemented for Tower Basis yet,
+/// switch basis, invert, and switch back.
+fn invert_flat(val: F) -> Option<F> {
+    let tower_val = val.convert_hardware();
+    let inv_tower = tower_val.invert()?;
+
+    Some(inv_tower.to_hardware())
+}
+
 /// Checks if a 4x4 Circulant Matrix is MDS.
 fn is_mds_circulant_4x4(row: &[u8; 4]) -> bool {
     let n = 4;
@@ -31,7 +39,7 @@ fn is_mds_circulant_4x4(row: &[u8; 4]) -> bool {
             // Circulant shift
             let idx = (n - r + c) % n;
             let val = row[idx];
-            matrix[r][c] = F::from(val as u64);
+            matrix[r][c] = F::from(val as u64).to_hardware();
         }
     }
 
@@ -75,15 +83,25 @@ fn is_mds_circulant_4x4(row: &[u8; 4]) -> bool {
 fn determinant_generic(flat: &[F], n: usize) -> F {
     match n {
         1 => flat[0],
-        2 => (flat[0] * flat[3]) + (flat[1] * flat[2]),
+        2 => {
+            let ad = flat[0].mul_hardware(flat[3]);
+            let bc = flat[1].mul_hardware(flat[2]);
+
+            ad + bc
+        }
         3 => {
+            // Sarrus rule
             let m = flat;
-            let d1 = m[0] * m[4] * m[8];
-            let d2 = m[1] * m[5] * m[6];
-            let d3 = m[2] * m[3] * m[7];
-            let a1 = m[2] * m[4] * m[6];
-            let a2 = m[1] * m[3] * m[8];
-            let a3 = m[0] * m[5] * m[7];
+
+            // Diagonals
+            let d1 = m[0].mul_hardware(m[4]).mul_hardware(m[8]);
+            let d2 = m[1].mul_hardware(m[5]).mul_hardware(m[6]);
+            let d3 = m[2].mul_hardware(m[3]).mul_hardware(m[7]);
+
+            // Anti-diagonals
+            let a1 = m[2].mul_hardware(m[4]).mul_hardware(m[6]);
+            let a2 = m[1].mul_hardware(m[3]).mul_hardware(m[8]);
+            let a3 = m[0].mul_hardware(m[5]).mul_hardware(m[7]);
 
             d1 + d2 + d3 + a1 + a2 + a3
         }
@@ -94,7 +112,7 @@ fn determinant_generic(flat: &[F], n: usize) -> F {
 
 fn determinant_gaussian(flat_matrix: &[F], n: usize) -> F {
     let mut mat = flat_matrix.to_vec();
-    let mut det = F::ONE;
+    let mut det = F::ONE.to_hardware();
 
     for i in 0..n {
         let mut pivot = i;
@@ -113,21 +131,21 @@ fn determinant_gaussian(flat_matrix: &[F], n: usize) -> F {
         }
 
         let pivot_val = mat[i * n + i];
-        let pivot_inv = pivot_val.invert().unwrap();
+        let pivot_inv = invert_flat(pivot_val).expect("Pivot is zero, but checked above");
 
         for j in (i + 1)..n {
             let target = mat[j * n + i];
             if target != F::ZERO {
-                let factor = target * pivot_inv;
+                let factor = target.mul_hardware(pivot_inv);
                 for col in i..n {
                     let val_i = mat[i * n + col];
                     let val_j = mat[j * n + col];
-                    mat[j * n + col] = val_j + (factor * val_i);
+                    mat[j * n + col] = val_j + factor.mul_hardware(val_i);
                 }
             }
         }
 
-        det *= pivot_val;
+        det = det.mul_hardware(pivot_val);
     }
 
     det
@@ -177,6 +195,7 @@ fn find_optimal_mds_4x4() {
     println!("Row: {:?}", best_row);
     println!("Cost: {}", best_cost);
     println!("========================================");
+
     println!("Expected Operations per Row:");
 
     for &x in &best_row {

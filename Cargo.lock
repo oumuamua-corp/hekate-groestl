@@ -308,13 +308,24 @@ dependencies = [
 
 [[package]]
 name = "hekate-groestl"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "criterion",
  "dhat",
  "digest",
  "hekate-groestl",
+ "hekate-math",
  "rand",
+]
+
+[[package]]
+name = "hekate-math"
+version = "0.6.0"
+dependencies = [
+ "rand",
+ "rand_chacha",
+ "serde",
+ "zeroize",
 ]
 
 [[package]]
@@ -868,6 +879,26 @@ name = "zerocopy-derive"
 version = "0.8.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1328722bbf2115db7e19d69ebcc15e795719e2d66b60827c6a69a117365e37a0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "zeroize"
+version = "1.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b97154e67e32c85465826e8bcc1c59429aaaf107c1e4a9e53c8d8ccd5eff88d0"
+dependencies = [
+ "zeroize_derive",
+]
+
+[[package]]
+name = "zeroize_derive"
+version = "1.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "85a5b4158499876c763cb03bc4e49185d3cccbabb15b33c627f7884f43db852e"
 dependencies = [
  "proc-macro2",
  "quote",

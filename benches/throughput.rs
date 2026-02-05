@@ -1,11 +1,8 @@
 use core::hint::black_box;
 use core::time::Duration;
 use criterion::{Criterion, Throughput, criterion_group, criterion_main};
-use hekate_groestl::{HekateGroestl, MockBlock128};
-// use hekate_math::Block128;
-
-type F = MockBlock128;
-//type F = Block128;
+use hekate_groestl::Hasher;
+use hekate_math::{Block128, HardwareField};
 
 fn merkle_node_compression(c: &mut Criterion) {
     let mut group = c.benchmark_group("MerkleNode");
@@ -13,11 +10,14 @@ fn merkle_node_compression(c: &mut Criterion) {
     group.sample_size(500);
     group.throughput(Throughput::Elements(2));
 
-    let input = [F::from(0xDEADBEEFu128), F::from(0xCAFEBABEu128)];
+    let input = [
+        Block128::from(0xDEADBEEFu128).to_hardware(),
+        Block128::from(0xCAFEBABEu128).to_hardware(),
+    ];
 
     group.bench_function("2-to-1", |b| {
         b.iter(|| {
-            let mut hasher = HekateGroestl::<F>::new(12);
+            let mut hasher = Hasher::new();
             hasher.update_elements(black_box(&input));
 
             black_box(hasher.finalize_raw())
@@ -39,11 +39,13 @@ fn bulk_hashing(c: &mut Criterion) {
     group.throughput(Throughput::Bytes(total_bytes));
 
     // Prepare large data vector
-    let data: Vec<F> = (0..num_elements).map(|i| F::from(i as u64)).collect();
+    let data: Vec<Block128> = (0..num_elements)
+        .map(|i| Block128::from(i as u64).to_hardware())
+        .collect();
 
     group.bench_function("1MB_Buffer", |b| {
         b.iter(|| {
-            let mut hasher = HekateGroestl::<F>::new(10);
+            let mut hasher = Hasher::new();
             hasher.update_elements(black_box(&data));
 
             black_box(hasher.finalize_raw())

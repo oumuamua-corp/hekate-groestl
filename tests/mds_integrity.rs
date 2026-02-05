@@ -1,9 +1,13 @@
 use hekate_groestl::MIX_P;
-use hekate_groestl::MockBlock128;
-// use hekate_math::{Block128, TowerField};
+use hekate_math::{Block128, HardwareField, TowerField};
 
-// type F = Block128;
-type F = MockBlock128;
+/// Helper to invert in flat basis.
+fn invert_flat(val: Block128) -> Option<Block128> {
+    let tower_val = val.convert_hardware();
+    let inv_tower = tower_val.invert()?;
+
+    Some(inv_tower.to_hardware())
+}
 
 /// Checks if a matrix is MDS (Maximum Distance Separable).
 /// An NxN matrix is MDS iff EVERY square submatrix is non-singular.
@@ -12,12 +16,12 @@ fn is_mds_circulant(row: &[u8; 4]) -> bool {
     let n = 4;
 
     // Construct the full 4x4 matrix
-    let mut matrix = [[F::ZERO; 4]; 4];
+    let mut matrix = [[Block128::ZERO; 4]; 4];
     for r in 0..n {
         for c in 0..n {
             let idx = (n - r + c) % n;
             let val = row[idx];
-            matrix[r][c] = F::from(val as u64);
+            matrix[r][c] = Block128::from(val as u64).to_hardware();
         }
     }
 
@@ -46,7 +50,7 @@ fn is_mds_circulant(row: &[u8; 4]) -> bool {
                 }
 
                 // Check singularity
-                if determinant(&sub, k) == F::ZERO {
+                if determinant(&sub, k) == Block128::ZERO {
                     return false;
                 }
             }
@@ -59,84 +63,69 @@ fn is_mds_circulant(row: &[u8; 4]) -> bool {
 /// Computes determinant using explicit formulas
 /// for small N and Gaussian elimination for N > 3.
 /// Input is a flat vector representing an n*n matrix.
-fn determinant(flat_matrix: &[F], n: usize) -> F {
+fn determinant(flat_matrix: &[Block128], n: usize) -> Block128 {
     // 1. Base Cases & Optimizations
     match n {
-        0 => return F::ONE,
+        0 => return Block128::ONE.to_hardware(),
         1 => return flat_matrix[0],
         2 => {
             // | a b |
-            // | c d | -> ad + bc (in char 2 subtraction is addition)
-            return (flat_matrix[0] * flat_matrix[3]) + (flat_matrix[1] * flat_matrix[2]);
+            // | c d | -> ad + bc
+            let ad = flat_matrix[0].mul_hardware(flat_matrix[3]);
+            let bc = flat_matrix[1].mul_hardware(flat_matrix[2]);
+
+            return ad + bc;
         }
         3 => {
-            // Rule of Sarrus for 3x3
-            // 0 1 2
-            // 3 4 5
-            // 6 7 8
+            // Rule of Sarrus
             let m = flat_matrix;
 
             // Diagonals
-            let d1 = m[0] * m[4] * m[8];
-            let d2 = m[1] * m[5] * m[6];
-            let d3 = m[2] * m[3] * m[7];
+            let d1 = m[0].mul_hardware(m[4]).mul_hardware(m[8]);
+            let d2 = m[1].mul_hardware(m[5]).mul_hardware(m[6]);
+            let d3 = m[2].mul_hardware(m[3]).mul_hardware(m[7]);
 
             // Anti-diagonals
-            let a1 = m[2] * m[4] * m[6];
-            let a2 = m[1] * m[3] * m[8];
-            let a3 = m[0] * m[5] * m[7];
+            let a1 = m[2].mul_hardware(m[4]).mul_hardware(m[6]);
+            let a2 = m[1].mul_hardware(m[3]).mul_hardware(m[8]);
+            let a3 = m[0].mul_hardware(m[5]).mul_hardware(m[7]);
 
-            // Sum all (signs don't matter in char 2)
             return d1 + d2 + d3 + a1 + a2 + a3;
         }
         _ => {} // Fallback to Gauss
     }
 
-    // 2. Gaussian Elimination for N > 3
-    // Convert matrix to Upper Triangular form.
-    // The determinant is then the product of the diagonal entries.
-    //
-    // Row operations:
-    // R_j = R_j + scalar * R_i (Determinant invariant)
-    //
-    // Row swaps:
-    // Det = -Det (In char 2, -Det == Det, so invariant)
-
+    // 2. Gaussian Elimination for N > 3 (Flat Basis)
     let mut mat = flat_matrix.to_vec();
 
     for i in 0..n {
-        // A. Find Pivot in column i, starting from row i
+        // A. Find Pivot
         let mut pivot_row = i;
-        while pivot_row < n && mat[pivot_row * n + i] == F::ZERO {
+        while pivot_row < n && mat[pivot_row * n + i] == Block128::ZERO {
             pivot_row += 1;
         }
 
-        // If no pivot found, column
-        // is all zeros -> Singular matrix
         if pivot_row == n {
-            return F::ZERO;
+            return Block128::ZERO;
         }
 
-        // B. Swap rows if needed
+        // B. Swap rows
         if pivot_row != i {
             for col in 0..n {
                 mat.swap(i * n + col, pivot_row * n + col);
             }
         }
 
-        // C. Eliminate rows below pivot
-        // We want mat[j][i] == 0 for all j > i
+        // C. Eliminate rows
         let pivot_val = mat[i * n + i];
 
-        // Invert pivot (guaranteed non-zero check passed above)
-        let pivot_inv = pivot_val
-            .invert()
-            .expect("Pivot inversion failed logic error");
+        // Invert in Flat Basis
+        let pivot_inv = invert_flat(pivot_val).expect("Pivot inversion failed logic error");
 
         for j in (i + 1)..n {
             let target_val = mat[j * n + i];
-            if target_val != F::ZERO {
-                let factor = target_val * pivot_inv;
+            if target_val != Block128::ZERO {
+                let factor = target_val.mul_hardware(pivot_inv);
 
                 // Row_j += factor * Row_i
                 // Start from `col = i` because previous cols are 0
@@ -144,17 +133,17 @@ fn determinant(flat_matrix: &[F], n: usize) -> F {
                     let val_i = mat[i * n + col];
                     let val_j = mat[j * n + col];
 
-                    // In char 2, add == sub
-                    mat[j * n + col] = val_j + (factor * val_i);
+                    // Row_j += factor * Row_i
+                    mat[j * n + col] = val_j + factor.mul_hardware(val_i);
                 }
             }
         }
     }
 
     // 3. Product of Diagonal
-    let mut det = F::ONE;
+    let mut det = Block128::ONE.to_hardware();
     for i in 0..n {
-        det = det * mat[i * n + i];
+        det = det.mul_hardware(mat[i * n + i]);
     }
 
     det
@@ -162,12 +151,14 @@ fn determinant(flat_matrix: &[F], n: usize) -> F {
 
 #[test]
 fn verify_mds_integrity() {
-    println!(">>> Verifying Groestl MDS Constants in Block128 Tower Field...");
+    println!(">>> Verifying Groestl MDS Constants (Hardware Basis)...");
 
+    // Check if MIX_P coefficients are valid
+    // for the hardware polynomial (0x87).
     let is_valid = is_mds_circulant(&MIX_P);
     if is_valid {
-        println!("Groestl constants form a valid MDS matrix");
+        println!("Groestl constants form a valid MDS matrix in Flat Basis");
     } else {
-        panic!("The diffusion property is BROKEN. MDS Mismatch detected");
+        panic!("The diffusion property is BROKEN in Flat Basis. MDS Mismatch detected");
     }
 }
