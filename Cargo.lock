@@ -308,7 +308,7 @@ dependencies = [
 
 [[package]]
 name = "hekate-groestl"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "criterion",
  "dhat",
@@ -320,7 +320,7 @@ dependencies = [
 
 [[package]]
 name = "hekate-math"
-version = "0.6.0"
+version = "0.1.0"
 dependencies = [
  "rand",
  "rand_chacha",
