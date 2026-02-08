@@ -3,6 +3,7 @@
 use digest::{FixedOutput, HashMarker, Output, OutputSizeUser, typenum::U32};
 use hekate_math::{
     Block128, CanonicalSerialize, HardwareField, PACKED_WIDTH_128, PackableField, PackedBlock128,
+    TowerField,
 };
 
 pub use digest::{Reset, Update};
@@ -12,6 +13,15 @@ pub const STATE_SIZE: usize = 16;
 
 /// Output length in bytes (256 bits).
 pub const OUT_LEN: usize = 32;
+
+/// Domain tag for dedicated 2-to-1 compression
+/// based on the Groestl-style compression
+/// function `compress()`.
+pub const TAG_2TO1_COMPRESS_FLAT: u128 = 0x5e3a90c2c7c3d00b8f29a6d5f14c8a71;
+
+/// Domain tag for dedicated 2-to-1 compression
+/// based on a single P-permutation.
+pub const TAG_2TO1_PERMUTATION_FLAT: u128 = 0x9d1c3f7a2a6b5c0e1e8a7f2d4b6c1903;
 
 /// MixBytes coefficients (MDS Matrix).
 /// Verified to be MDS in Flat Basis (AES Polynomial 0x87).
@@ -214,6 +224,10 @@ pub trait Block128Ext: Sized + Copy {
     fn double(self) -> Self;
     fn batch_sbox(chunk: &mut [Self]);
 }
+
+/// Digest in native field elements (256 bits).
+/// All values are assumed to be in the Hardware (Flat) basis.
+pub type Digest256 = [Block128; 2];
 
 /// Newtype struct for the hash output (32 bytes).
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
@@ -515,6 +529,47 @@ pub fn compress(h: &mut [Block128; STATE_SIZE], m: &[Block128; STATE_SIZE]) {
     }
 }
 
+/// Dedicated 2-to-1 compression for Merkle-style
+/// hashing. This variant uses the Groestl-style
+/// compression function:
+/// `f(h, m) = P(h ^ m) ^ Q(m) ^ h`
+#[inline(always)]
+pub fn compress_2to1(left: Digest256, right: Digest256) -> Digest256 {
+    let mut h = [Block128::ZERO; STATE_SIZE];
+    let mut m = [Block128::ZERO; STATE_SIZE];
+
+    m[0] = Block128(TAG_2TO1_COMPRESS_FLAT);
+
+    m[1] = left[0];
+    m[2] = left[1];
+    m[3] = right[0];
+    m[4] = right[1];
+
+    compress(&mut h, &m);
+
+    fold_state_to_digest(&h)
+}
+
+/// Dedicated 2-to-1 compression for Merkle-style
+/// hashing. This variant treats the P-permutation
+/// as a PRP and uses a single permutation
+/// (sponge-like absorb + permute).
+#[inline(always)]
+pub fn compress_2to1_prp(left: Digest256, right: Digest256) -> Digest256 {
+    let mut state = [Block128::ZERO; STATE_SIZE];
+
+    state[0] = Block128(TAG_2TO1_PERMUTATION_FLAT);
+
+    state[1] = left[0];
+    state[2] = left[1];
+    state[3] = right[0];
+    state[4] = right[1];
+
+    permutation(&mut state, false);
+
+    fold_state_to_digest(&state)
+}
+
 /// Core Groestl Permutation (P/Q).
 /// Executes the Hekate Groestl round function.
 #[inline(always)]
@@ -523,20 +578,15 @@ pub fn permutation(state: &mut [Block128; STATE_SIZE], is_q: bool) {
     let r_consts = if is_q { &RC_Q_FLAT } else { &RC_P_FLAT };
 
     let mut temp = [Block128::default(); STATE_SIZE];
-    for round in 0..ROUNDS {
+    for round_consts in r_consts.iter().take(ROUNDS) {
         // A. AddRoundConstant
-        for i in 0..STATE_SIZE {
-            // 4x4 layout
-            let row = i / 4;
-            let col = i % 4;
+        let target_row = if is_q { 3 } else { 0 };
+        let base = target_row * 4;
 
-            // Target row for constant injection
-            let target_row = if is_q { 3 } else { 0 };
-
-            if row == target_row {
-                state[i] += Block128(r_consts[round][col]);
-            }
-        }
+        state[base] += Block128(round_consts[0]);
+        state[base + 1] += Block128(round_consts[1]);
+        state[base + 2] += Block128(round_consts[2]);
+        state[base + 3] += Block128(round_consts[3]);
 
         // B. SubBytes (Native S-Box)
         let mut i = 0;
@@ -561,10 +611,10 @@ pub fn permutation(state: &mut [Block128; STATE_SIZE], is_q: bool) {
         // Process 4 columns independently
         for c in 0..4 {
             // Load column 'c' elements
-            let s0 = temp[0 * 4 + c];
-            let s1 = temp[1 * 4 + c];
-            let s2 = temp[2 * 4 + c];
-            let s3 = temp[3 * 4 + c];
+            let s0 = temp[c];
+            let s1 = temp[4 + c];
+            let s2 = temp[8 + c];
+            let s3 = temp[12 + c];
 
             // Precompute Doubling (x * 2)
             let d0 = s0.double();
@@ -580,19 +630,19 @@ pub fn permutation(state: &mut [Block128; STATE_SIZE], is_q: bool) {
 
             // Row 0:
             // [1, 1, 2, 3] -> s0 + s1 + 2s2 + 3s3
-            state[0 * 4 + c] = s0 + s1 + d2 + (d3 + s3);
+            state[c] = s0 + s1 + d2 + (d3 + s3);
 
             // Row 1:
             // [3, 1, 1, 2] -> 3s0 + s1 + s2 + 2s3
-            state[1 * 4 + c] = (d0 + s0) + s1 + s2 + d3;
+            state[4 + c] = (d0 + s0) + s1 + s2 + d3;
 
             // Row 2:
             // [2, 3, 1, 1] -> 2s0 + 3s1 + s2 + s3
-            state[2 * 4 + c] = d0 + (d1 + s1) + s2 + s3;
+            state[8 + c] = d0 + (d1 + s1) + s2 + s3;
 
             // Row 3:
             // [1, 2, 3, 1] -> s0 + 2s1 + 3s2 + s3
-            state[3 * 4 + c] = s0 + d1 + (d2 + s2) + s3;
+            state[12 + c] = s0 + d1 + (d2 + s2) + s3;
         }
     }
 }
@@ -609,4 +659,23 @@ pub fn output_transform(state: &[Block128; STATE_SIZE]) -> [Block128; STATE_SIZE
     }
 
     p_out
+}
+
+#[inline(always)]
+fn fold_state_to_digest(state: &[Block128; STATE_SIZE]) -> Digest256 {
+    let mut out0 = Block128::ZERO;
+    let mut out1 = Block128::ZERO;
+    let mut i = 0usize;
+
+    while i < STATE_SIZE {
+        if i.is_multiple_of(2) {
+            out0 += state[i];
+        } else {
+            out1 += state[i];
+        }
+
+        i += 1;
+    }
+
+    [out0, out1]
 }
