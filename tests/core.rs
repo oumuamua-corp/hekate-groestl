@@ -289,11 +289,11 @@ fn buffer_exact_boundary() {
 
     // Create 64 elements
     let mut input = [Block128::default(); STATE_SIZE];
-    for i in 0..STATE_SIZE {
+    for (i, slot) in input.iter_mut().enumerate() {
         let val = (i as u64)
             .wrapping_mul(0x1234_5678_90AB_CDEF)
             .wrapping_add(0xCAFE_BABE);
-        input[i] = Block128::from(val);
+        *slot = Block128::from(val);
     }
 
     // This triggers a compress() inside
@@ -339,11 +339,11 @@ fn buffer_boundary_overflow_65() {
 
     // 65 elements
     let mut input = [Block128::default(); STATE_SIZE + 1];
-    for i in 0..input.len() {
+    for (i, slot) in input.iter_mut().enumerate() {
         let val = (i as u64)
             .wrapping_mul(0x1122_3344_5566_7788)
             .wrapping_add(0xDEAD_1010);
-        input[i] = Block128::from(val);
+        *slot = Block128::from(val);
     }
 
     hasher.update_elements(&input);
@@ -388,11 +388,11 @@ fn buffer_boundary_underflow_63() {
     let mut hasher = Hasher::new();
 
     let mut input = [Block128::default(); STATE_SIZE - 1];
-    for i in 0..input.len() {
+    for (i, slot) in input.iter_mut().enumerate() {
         let val = (i as u64)
             .wrapping_mul(0x9988_7766_5544_3322)
             .wrapping_add(0xBEEF_2020);
-        input[i] = Block128::from(val);
+        *slot = Block128::from(val);
     }
 
     hasher.update_elements(&input);

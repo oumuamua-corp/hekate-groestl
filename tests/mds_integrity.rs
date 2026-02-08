@@ -17,11 +17,10 @@ fn is_mds_circulant(row: &[u8; 4]) -> bool {
 
     // Construct the full 4x4 matrix
     let mut matrix = [[Block128::ZERO; 4]; 4];
-    for r in 0..n {
-        for c in 0..n {
+    for (r, out_row) in matrix.iter_mut().enumerate() {
+        for (c, cell) in out_row.iter_mut().enumerate() {
             let idx = (n - r + c) % n;
-            let val = row[idx];
-            matrix[r][c] = Block128::from(val as u64).to_hardware();
+            *cell = Block128::from(row[idx] as u64).to_hardware();
         }
     }
 
@@ -39,11 +38,11 @@ fn is_mds_circulant(row: &[u8; 4]) -> bool {
 
                 // Construct submatrix
                 let mut sub = Vec::with_capacity(k * k);
-                for r in 0..4 {
+                for (r, row_vals) in matrix.iter().enumerate() {
                     if (r_mask >> r) & 1 == 1 {
-                        for c in 0..4 {
+                        for (c, &val) in row_vals.iter().enumerate() {
                             if (c_mask >> c) & 1 == 1 {
-                                sub.push(matrix[r][c]);
+                                sub.push(val);
                             }
                         }
                     }
