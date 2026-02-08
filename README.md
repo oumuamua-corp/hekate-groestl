@@ -28,13 +28,13 @@ overhead while maximizing native CPU execution via SIMD intrinsics.
 
 ### Hakete Groestl != NIST Groestl
 
-| Feature    | Standard Groestl-256    | Hekate-Groestl V2                   | Rationale                    |
-|:-----------|:------------------------|:------------------------------------|:-----------------------------|
-| Domain     | $GF(2^8)$ (Bytes)       | $GF(2^{128})$                       | Circuit Efficiency           |
-| State Size | 64 bytes (512 bits)     | 256 bytes (2048 bits)               | Capacity / Security          |
-| S-Box      | $x^{-1}$ in $GF(2^8)$   | $x^{254} + c$ in $GF(2^{128})$      | GKR Arithmetization          |
-| MDS Matrix | $8 \times 8$ (Branch 9) | $4 \times 4$ (Branch 5)             | L1 Cache / Register Pressure |
-| Padding    | Bit-padding             | Field Padding (`0x80` Tag + Length) | Length Extension Defense     |
+| Feature    | Standard Groestl-256    | Hekate Groestl                      |
+|:-----------|:------------------------|:------------------------------------|
+| Domain     | $GF(2^8)$ (Bytes)       | $GF(2^{128})$                       |
+| State Size | 64 bytes (512 bits)     | 256 bytes (2048 bits)               |
+| S-Box      | $x^{-1}$ in $GF(2^8)$   | $x^{254} + c$ in $GF(2^{128})$      |
+| MDS Matrix | $8 \times 8$ (Branch 9) | $4 \times 4$ (Branch 5)             |
+| Padding    | Bit-padding             | Field Padding (`0x80` Tag + Length) |
 
 ## Installation
 
@@ -111,7 +111,7 @@ Hekate Groestl runs on the `Block128` hardware backend (NEON/PMULL).
 
 | Primitive        | Field           | Latency (Permutation) | Throughput (Merkle) | Throughput (Bulk) |
 |:-----------------|:----------------|:----------------------|:--------------------|:------------------|
-| Hekate-Groestl   | $GF(2^{128})$   | 3.6 µs                | ~172 K/s            | ~32.1 MiB/s       |
+| Hekate Groestl   | $GF(2^{128})$   | 3.6 µs                | ~172 K/s            | ~32.1 MiB/s       |
 | Miden RPO        | $F_p$ (64-bit)  | 3.00 µs               | ~337 K/s            | ~20.5 MiB/s       | 
 | Poseidon (BN254) | $F_p$ (254-bit) | 18.74 µs              | ~52 K/s             | ~3.2 MiB/s        | 
 
