@@ -21,8 +21,8 @@ overhead while maximizing native CPU execution via SIMD intrinsics.
   bits), fitting entirely within CPU registers for maximum register renaming efficiency.
 * **Algebraic S-Box:** Replaces the AES S-Box with the power map $S(x) = x^{254} + 0x63$. In characteristic-2 fields,
   this decomposes into cheap linear squaring operations in GKR circuits.
-* **Hardware Acceleration:** Generic over `TowerFieldElement`. When used with `Block128`, it leverages `PMULL` (ARM) and
-  `PCLMULQDQ` (x86) instructions for single-cycle field multiplication.
+* **Hardware Acceleration:** With `Block128` it leverages `PMULL` (ARM) and `PCLMULQDQ` (x86)
+  instructions for single-cycle field multiplication.
 * **ZK-Friendly MDS:** Utilizes a custom MDS matrix `[1, 1, 2, 3]` with small coefficients to minimize linear
   constraint depth.
 
