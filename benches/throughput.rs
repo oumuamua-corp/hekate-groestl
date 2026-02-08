@@ -1,7 +1,7 @@
 use core::hint::black_box;
 use core::time::Duration;
 use criterion::{Criterion, Throughput, criterion_group, criterion_main};
-use hekate_groestl::Hasher;
+use hekate_groestl::{Hasher, compress_node, compress_node_prp};
 use hekate_math::{Block128, HardwareField};
 
 fn merkle_node_compression(c: &mut Criterion) {
@@ -10,18 +10,34 @@ fn merkle_node_compression(c: &mut Criterion) {
     group.sample_size(500);
     group.throughput(Throughput::Elements(2));
 
-    let input = [
-        Block128::from(0xDEADBEEFu128).to_hardware(),
-        Block128::from(0xCAFEBABEu128).to_hardware(),
+    let left = [
+        Block128::from(0xDEAD_BEEF_u64).to_hardware(),
+        Block128::from(0xCAFE_BABE_u64).to_hardware(),
+    ];
+    let right = [
+        Block128::from(0xAAAA_BBBB_u64).to_hardware(),
+        Block128::from(0xCCCC_DDDD_u64).to_hardware(),
     ];
 
-    group.bench_function("2-to-1", |b| {
+    // 1. General-purpose Hasher struct
+    group.bench_function("Hasher", |b| {
         b.iter(|| {
             let mut hasher = Hasher::new();
-            hasher.update_elements(black_box(&input));
+            hasher.update_elements(black_box(&left));
+            hasher.update_elements(black_box(&right));
 
             black_box(hasher.finalize_raw())
         })
+    });
+
+    // 2. Uses P and Q permutations (Davies-Meyer)
+    group.bench_function("Compress_Node", |b| {
+        b.iter(|| compress_node(black_box(left), black_box(right)))
+    });
+
+    // 3. Uses single P permutation (Sponge-like)
+    group.bench_function("Compress_Node_PRP", |b| {
+        b.iter(|| compress_node_prp(black_box(left), black_box(right)))
     });
 
     group.finish();
