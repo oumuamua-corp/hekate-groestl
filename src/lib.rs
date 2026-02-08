@@ -534,7 +534,7 @@ pub fn compress(h: &mut [Block128; STATE_SIZE], m: &[Block128; STATE_SIZE]) {
 /// compression function:
 /// `f(h, m) = P(h ^ m) ^ Q(m) ^ h`
 #[inline(always)]
-pub fn compress_2to1(left: Digest256, right: Digest256) -> Digest256 {
+pub fn compress_node(left: Digest256, right: Digest256) -> Digest256 {
     let mut h = [Block128::ZERO; STATE_SIZE];
     let mut m = [Block128::ZERO; STATE_SIZE];
 
@@ -555,7 +555,7 @@ pub fn compress_2to1(left: Digest256, right: Digest256) -> Digest256 {
 /// as a PRP and uses a single permutation
 /// (sponge-like absorb + permute).
 #[inline(always)]
-pub fn compress_2to1_prp(left: Digest256, right: Digest256) -> Digest256 {
+pub fn compress_node_prp(left: Digest256, right: Digest256) -> Digest256 {
     let mut state = [Block128::ZERO; STATE_SIZE];
 
     state[0] = Block128(TAG_2TO1_PERMUTATION_FLAT);
