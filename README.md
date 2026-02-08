@@ -111,7 +111,7 @@ Hekate Groestl runs on the `Block128` hardware backend (NEON/PMULL).
 
 | Primitive        | Field           | Latency (Permutation) | Throughput (Merkle) | Throughput (Bulk) |
 |:-----------------|:----------------|:----------------------|:--------------------|:------------------|
-| Hekate Groestl   | $GF(2^{128})$   | 3.6 µs                | ~172 K/s            | ~32.1 MiB/s       |
+| Hekate Groestl   | $GF(2^{128})$   | 3.6 µs                | ~176 K/s            | ~32.1 MiB/s       |
 | Miden RPO        | $F_p$ (64-bit)  | 3.00 µs               | ~337 K/s            | ~20.5 MiB/s       | 
 | Poseidon (BN254) | $F_p$ (254-bit) | 18.74 µs              | ~52 K/s             | ~3.2 MiB/s        | 
 
