@@ -15,13 +15,12 @@ pub const STATE_SIZE: usize = 16;
 pub const OUT_LEN: usize = 32;
 
 /// Domain tag for dedicated 2-to-1 compression
-/// based on the Groestl-style compression
-/// function `compress()`.
-pub const TAG_2TO1_COMPRESS_FLAT: u128 = 0x5e3a90c2c7c3d00b8f29a6d5f14c8a71;
+/// based on the Groestl-style compression.
+pub const TAG_NODE_COMPRESS_FLAT: u128 = 0x5e3a90c2c7c3d00b8f29a6d5f14c8a71;
 
 /// Domain tag for dedicated 2-to-1 compression
 /// based on a single P-permutation.
-pub const TAG_2TO1_PERMUTATION_FLAT: u128 = 0x9d1c3f7a2a6b5c0e1e8a7f2d4b6c1903;
+pub const TAG_NODE_PERMUTATION_FLAT: u128 = 0x9d1c3f7a2a6b5c0e1e8a7f2d4b6c1903;
 
 /// MixBytes coefficients (MDS Matrix).
 /// Verified to be MDS in Flat Basis (AES Polynomial 0x87).
@@ -277,7 +276,6 @@ impl Hasher {
 
             if self.buf_len == STATE_SIZE {
                 compress(&mut self.state, &self.buffer);
-
                 self.buf_len = 0;
             }
         }
@@ -296,7 +294,6 @@ impl Hasher {
             }
 
             compress(&mut self.state, &self.buffer);
-
             self.buf_len = 0;
         }
 
@@ -318,7 +315,8 @@ impl Hasher {
         let mut s_next = self.state;
         permutation(&mut s_next, false);
 
-        // Output Transform: T = S_next ^ S_curr
+        // Output Transform:
+        // T = S_next ^ S_curr
         let mut transformed = [Block128::default(); STATE_SIZE];
         for i in 0..STATE_SIZE {
             transformed[i] = s_next[i] + self.state[i];
@@ -370,7 +368,8 @@ impl Hasher {
         // Final Compress
         compress(&mut final_hasher.state, &final_hasher.buffer);
 
-        // Output Transform: T = P(S) ^ S
+        // Output Transform:
+        // T = P(S) ^ S
         let transformed = output_transform(&final_hasher.state);
 
         // Folding
@@ -476,17 +475,19 @@ impl Block128Ext for Block128 {
         for simd_chunk in &mut chunks {
             let x_vec = Self::pack(simd_chunk);
 
-            // Compute S-Box: x^254 + c
+            // Compute S-Box:
+            // x^254 + c
             let mut term = Self::mul_hardware_packed(x_vec, x_vec); // x^2
             let mut acc = term;
 
-            // Loop 6 times to accumulate powers
+            // Accumulate powers
             for _ in 0..6 {
                 term = Self::mul_hardware_packed(term, term);
                 acc = Self::mul_hardware_packed(acc, term);
             }
 
-            // Affine transform: + c (XOR)
+            // Affine transform:
+            // + c (XOR)
             let res = acc + c_packed;
 
             Self::unpack(res, simd_chunk);
@@ -538,7 +539,7 @@ pub fn compress_node(left: Digest256, right: Digest256) -> Digest256 {
     let mut h = [Block128::ZERO; STATE_SIZE];
     let mut m = [Block128::ZERO; STATE_SIZE];
 
-    m[0] = Block128(TAG_2TO1_COMPRESS_FLAT);
+    m[0] = Block128(TAG_NODE_COMPRESS_FLAT);
 
     m[1] = left[0];
     m[2] = left[1];
@@ -558,7 +559,7 @@ pub fn compress_node(left: Digest256, right: Digest256) -> Digest256 {
 pub fn compress_node_prp(left: Digest256, right: Digest256) -> Digest256 {
     let mut state = [Block128::ZERO; STATE_SIZE];
 
-    state[0] = Block128(TAG_2TO1_PERMUTATION_FLAT);
+    state[0] = Block128(TAG_NODE_PERMUTATION_FLAT);
 
     state[1] = left[0];
     state[2] = left[1];
@@ -629,19 +630,19 @@ pub fn permutation(state: &mut [Block128; STATE_SIZE], is_q: bool) {
             // x * 3 = d + x
 
             // Row 0:
-            // [1, 1, 2, 3] -> s0 + s1 + 2s2 + 3s3
+            // [1, 1, 2, 3]
             state[c] = s0 + s1 + d2 + (d3 + s3);
 
             // Row 1:
-            // [3, 1, 1, 2] -> 3s0 + s1 + s2 + 2s3
+            // [3, 1, 1, 2]
             state[4 + c] = (d0 + s0) + s1 + s2 + d3;
 
             // Row 2:
-            // [2, 3, 1, 1] -> 2s0 + 3s1 + s2 + s3
+            // [2, 3, 1, 1]
             state[8 + c] = d0 + (d1 + s1) + s2 + s3;
 
             // Row 3:
-            // [1, 2, 3, 1] -> s0 + 2s1 + 3s2 + s3
+            // [1, 2, 3, 1]
             state[12 + c] = s0 + d1 + (d2 + s2) + s3;
         }
     }
