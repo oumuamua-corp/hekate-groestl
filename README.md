@@ -122,6 +122,22 @@ Hekate Groestl runs on the `Block128` hardware backend (NEON/PMULL).
 > * Raw PRP (No Padding): For specialized circuits, the raw permutation throughput
     reaches ~500 K/s, exceeding Miden RPO in raw element processing.
 
+### GKR Gadget
+
+While `hekate-groestl` is open-source, it is designed to be the native hash for the
+proprietary [Hekate ZK Engine](https://github.com/oumuamua-corp/hekate). Below are
+the proving metrics when integrated into a streaming GKR prover on consumer hardware (Apple M3 Max).
+
+| Metric           | Value           | Impact                                                                |
+|:-----------------|:----------------|:----------------------------------------------------------------------|
+| Proving Latency  | ~4.75 ms / hash | Sub-5ms proving time per invocation (Batch: 100).                     |
+| Algebraic Degree | 127             | Maximum non-linearity for security against algebraic attacks.         |
+| Circuit Depth    | 6 Layers        | Constant depth via fused `SquareAndMul` gates, independent of degree. |
+| RAM Overhead     | O(log N)        | Minimal memory footprint due to GKR streaming architecture.           |
+
+> **Note:** These benchmarks reflect the efficiency of the primitive inside a specialized GKR circuit.
+> Performance in generic R1CS/PlonK systems may vary due to the lack of native binary field support.
+
 ## License
 
 This project is licensed under the Apache 2.0 License. See [LICENSE](./LICENSE) for details.
