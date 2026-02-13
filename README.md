@@ -112,15 +112,15 @@ Hekate Groestl runs on the `Block128` hardware backend (NEON/PMULL).
 
 | Primitive        | Field           | Latency (Permutation) | Throughput (Merkle) | Throughput (Bulk) |
 |:-----------------|:----------------|:----------------------|:--------------------|:------------------|
-| Hekate Groestl   | $GF(2^{128})$   | 4.37 µs               | ~147 K/s            | ~26.6 MiB/s       |
+| Hekate Groestl   | $GF(2^{128})$   | 4.05 µs               | ~164 K/s            | ~31.2 MiB/s       |
 | Miden RPO        | $F_p$ (64-bit)  | 3.00 µs               | ~337 K/s            | ~20.5 MiB/s       | 
 | Poseidon (BN254) | $F_p$ (254-bit) | 18.74 µs              | ~52 K/s             | ~3.2 MiB/s        | 
 
 > **Optimization Note:**
-> * The Merkle throughput listed above (~147 K/s) uses the standard padded sponge API for maximum security.
-> * 2-to-1 Compression (Node): Using the dedicated compression function achieves ~222 K/s.
+> * The Merkle throughput listed above (~164 K/s) uses the standard padded sponge API for maximum security.
+> * 2-to-1 Compression (Node): Using the dedicated compression function achieves ~250 K/s.
 > * Raw PRP (No Padding): For specialized circuits, the raw permutation throughput
-    reaches ~441 K/s, exceeding Miden RPO in raw element processing.
+    reaches ~500 K/s, exceeding Miden RPO in raw element processing.
 
 ## License
 

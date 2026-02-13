@@ -8,7 +8,7 @@ use hekate_math::{
 
 pub use digest::{Reset, Update};
 
-pub const ROUNDS: usize = 12;
+pub const ROUNDS: usize = 10;
 pub const STATE_SIZE: usize = 16;
 
 /// Output length in bytes (256 bits).
