@@ -446,12 +446,13 @@ impl Reset for Hasher {
 impl Block128Ext for Block128 {
     #[inline(always)]
     fn square(self) -> Self {
+        // NOTE: mul_hardware is faster than
+        // squaring using ARM AArch64 NEON + PMULL.
         self.mul_hardware(self)
     }
 
     #[inline(always)]
     fn double(self) -> Self {
-        // Optimized:
         // x * 2 in Flat Basis is just
         // a shift + conditional XOR.
         //
@@ -475,21 +476,17 @@ impl Block128Ext for Block128 {
         for simd_chunk in &mut chunks {
             let x_vec = Self::pack(simd_chunk);
 
-            // Compute S-Box:
-            // x^254 + c
-            let mut term = Self::mul_hardware_packed(x_vec, x_vec); // x^2
-            let mut acc = term;
-
-            // Accumulate powers
+            // Chain:
+            // 6 steps of (acc^2 * x)
+            let mut acc = x_vec;
             for _ in 0..6 {
-                term = Self::mul_hardware_packed(term, term);
-                acc = Self::mul_hardware_packed(acc, term);
+                let sq = Self::mul_hardware_packed(acc, acc); // acc^2
+                acc = Self::mul_hardware_packed(sq, x_vec); // acc^2 * x
             }
 
             // Affine transform:
             // + c (XOR)
             let res = acc + c_packed;
-
             Self::unpack(res, simd_chunk);
         }
 
@@ -497,12 +494,10 @@ impl Block128Ext for Block128 {
         for item in chunks.into_remainder() {
             let x = *item;
 
-            let mut term = x.square();
-            let mut acc = term;
-
+            // Compute x^127
+            let mut acc = x;
             for _ in 0..6 {
-                term = term.square();
-                acc = acc.mul_hardware(term);
+                acc = acc.square().mul_hardware(x);
             }
 
             *item = acc + Block128(SBOX_C_FLAT);

@@ -19,8 +19,9 @@ overhead while maximizing native CPU execution via SIMD intrinsics.
 
 * **Compact State:** Uses a $4 \times 4$ matrix of $GF(2^{128})$ elements. Total state size is 256 bytes (2048
   bits), fitting entirely within CPU registers for maximum register renaming efficiency.
-* **Algebraic S-Box:** Replaces the AES S-Box with the power map $S(x) = x^{254} + 0x63$. In characteristic-2 fields,
-  this decomposes into cheap linear squaring operations in GKR circuits.
+* **Algebraic S-Box:** Uses an Itoh-Tsujii addition chain to compute $S(x) = x^{127} + 0x63$.
+  This provides a maximal algebraic degree of 127 while maintaining a constant GKR depth of
+  6 layers via fused `SquareAndMul` gates.
 * **Hardware Acceleration:** With `Block128` it leverages `PMULL` (ARM) and `PCLMULQDQ` (x86)
   instructions for single-cycle field multiplication.
 * **ZK-Friendly MDS:** Utilizes a custom MDS matrix `[1, 1, 2, 3]` with small coefficients to minimize linear
@@ -32,7 +33,7 @@ overhead while maximizing native CPU execution via SIMD intrinsics.
 |:-----------|:------------------------|:------------------------------------|
 | Domain     | $GF(2^8)$ (Bytes)       | $GF(2^{128})$                       |
 | State Size | 64 bytes (512 bits)     | 256 bytes (2048 bits)               |
-| S-Box      | $x^{-1}$ in $GF(2^8)$   | $x^{254} + c$ in $GF(2^{128})$      |
+| S-Box      | $x^{-1}$ in $GF(2^8)$   | $x^{127} + c$ in $GF(2^{128})$      |
 | MDS Matrix | $8 \times 8$ (Branch 9) | $4 \times 4$ (Branch 5)             |
 | Padding    | Bit-padding             | Field Padding (`0x80` Tag + Length) |
 
@@ -97,7 +98,7 @@ fn main() {
 The core permutation follows the SP-Network design:
 
 1. **AddRoundConstant:** XOR round constants.
-2. **SubBytes:** Applies $x \mapsto x^{254} + 0x63$ (Native Field S-Box).
+2. **SubBytes:** Applies $x \mapsto x^{127} + 0x63$ (High-degree Itoh-Tsujii S-Box).
 3. **ShiftBytes:** Column rotation for diffusion.
 4. **MixBytes:** Column-wise multiplication by MDS matrix `[1, 1, 2, 3]`.
 
@@ -111,15 +112,15 @@ Hekate Groestl runs on the `Block128` hardware backend (NEON/PMULL).
 
 | Primitive        | Field           | Latency (Permutation) | Throughput (Merkle) | Throughput (Bulk) |
 |:-----------------|:----------------|:----------------------|:--------------------|:------------------|
-| Hekate Groestl   | $GF(2^{128})$   | 3.6 µs                | ~176 K/s            | ~32.1 MiB/s       |
+| Hekate Groestl   | $GF(2^{128})$   | 4.37 µs               | ~147 K/s            | ~26.6 MiB/s       |
 | Miden RPO        | $F_p$ (64-bit)  | 3.00 µs               | ~337 K/s            | ~20.5 MiB/s       | 
 | Poseidon (BN254) | $F_p$ (254-bit) | 18.74 µs              | ~52 K/s             | ~3.2 MiB/s        | 
 
 > **Optimization Note:**
-> * The Merkle throughput listed above (~176 K/s) uses the standard padded sponge API for maximum security.
-> * 2-to-1 Compression (Node): Using the dedicated compression function achieves ~273 K/s.
+> * The Merkle throughput listed above (~147 K/s) uses the standard padded sponge API for maximum security.
+> * 2-to-1 Compression (Node): Using the dedicated compression function achieves ~222 K/s.
 > * Raw PRP (No Padding): For specialized circuits, the raw permutation throughput
-    reaches ~546 K/s, exceeding Miden RPO in raw element processing.
+    reaches ~441 K/s, exceeding Miden RPO in raw element processing.
 
 ## License
 
