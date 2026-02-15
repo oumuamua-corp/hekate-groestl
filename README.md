@@ -130,7 +130,7 @@ the proving metrics when integrated into a streaming GKR prover on consumer hard
 
 | Metric           | Value           | Impact                                                                |
 |:-----------------|:----------------|:----------------------------------------------------------------------|
-| Proving Latency  | ~4.75 ms / hash | Sub-5ms proving time per invocation (Batch: 100).                     |
+| Proving Latency  | ~1.85 ms / hash | Sub-5ms proving time per invocation (Batch: 4096).                    |
 | Algebraic Degree | 127             | Maximum non-linearity for security against algebraic attacks.         |
 | Circuit Depth    | 6 Layers        | Constant depth via fused `SquareAndMul` gates, independent of degree. |
 | RAM Overhead     | O(log N)        | Minimal memory footprint due to GKR streaming architecture.           |
