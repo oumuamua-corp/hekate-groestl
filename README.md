@@ -122,6 +122,8 @@ Hekate Groestl runs on the `Block128` hardware backend (NEON/PMULL).
 > * Raw PRP (No Padding): For specialized circuits, the raw permutation throughput
     reaches ~500 K/s, exceeding Miden RPO in raw element processing.
 
+*Benchmarks reproduced via `cargo bench`.*
+
 ### GKR Gadget
 
 While `hekate-groestl` is open-source, it is designed to be the native hash for the
